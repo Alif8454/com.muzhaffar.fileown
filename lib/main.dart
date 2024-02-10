@@ -1,67 +1,186 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'second.dart';
 
-void main() => runApp(MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+  runApp(MyApp());
+}
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
-    var key2 = null;
     return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: MyHomePage(
-        title: 'Flutter Demo Home Page',
-        key: key2,
-      ),
+      debugShowCheckedModeBanner: false,
+      home: first(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  MyHomePage({required Key key, required this.title}) : super(key: key);
-
-  final String title;
-
+class first extends StatefulWidget {
   @override
-  _MyHomePageState createState() => _MyHomePageState();
+  State<first> createState() => _firstState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _firstState extends State<first> {
+  GoogleSignInAccount? _userObj;
+  GoogleSignIn _googleSignIn = GoogleSignIn();
+  String url = "";
+  String name = "";
+  String email = "";
+  CollectionReference ref = FirebaseFirestore.instance.collection('users');
+  final _auth = FirebaseAuth.instance;
 
-  void _incrementCounter() {
-    setState(() {
-      _counter++;
-    });
-  }
-
+  GoogleSignInAuthentication? googleAuth;
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Text(
-              'You have pushed the button this many times:',
+      backgroundColor: Colors.indigo[900],
+      body: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Image.asset("assets/p1.png"),
+          SizedBox(
+            height: 90,
+          ),
+
+          Text(
+            'Personal Drive App',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 35,
             ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headline4,
+          ),
+          SizedBox(
+            height: 30,
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 20, right: 20),
+            child: MaterialButton(
+              color: Color.fromARGB(255, 255, 255, 255),
+              elevation: 10,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  Container(
+                    height: 40.0,
+                    width: 40.0,
+                    decoration: BoxDecoration(
+                      image: DecorationImage(
+                          image: NetworkImage(
+                              'https://cdn-icons-png.flaticon.com/512/2991/2991148.png'),
+                          fit: BoxFit.cover),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  SizedBox(
+                    width: 20,
+                  ),
+                  Text(
+                    "Sign In with Google",
+                    style: TextStyle(
+                      color: Colors.indigo[900],
+                      fontSize: 20,
+                    ),
+                  ),
+                ],
+              ),
+              onPressed: () async {
+                var f = await signInWithGoogle();
+                User? user = _auth.currentUser;
+                if (f != null) {
+                  var de = FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(user!.uid)
+                      .get();
+
+                  if (de != null) {
+                    ref.doc(user.uid).set({
+                      'name': name,
+                      'url': url,
+                      'email': email,
+                    });
+                  }
+
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => (second(
+                        url: url,
+                      )),
+                    ),
+                  );
+                }
+              },
             ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: Icon(Icons.add),
+          ),
+          // Padding(
+          //   padding: EdgeInsets.only(bottom: 50),
+          // ),
+
+          SizedBox(
+            height: 90,
+          ),
+          Text(
+            'Made By',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+            ),
+          ),
+
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'Web',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 35,
+                ),
+              ),
+              Text(
+                'Fun',
+                style: TextStyle(
+                  color: Colors.yellow[700],
+                  fontSize: 35,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
+  }
+
+  Future<UserCredential> signInWithGoogle() async {
+    // Trigger the authentication flow
+    final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+    print(googleUser);
+    url = googleUser!.photoUrl.toString();
+    name = googleUser.displayName.toString();
+    email = googleUser.email;
+
+    // Obtain the auth details from the request
+    final GoogleSignInAuthentication? googleAuth =
+        await googleUser.authentication;
+
+    // Create a new credential
+    final credential = GoogleAuthProvider.credential(
+      accessToken: googleAuth?.accessToken,
+      idToken: googleAuth?.idToken,
+    );
+
+    // Once signed in, return the UserCredential
+    return await FirebaseAuth.instance.signInWithCredential(credential);
   }
 }
