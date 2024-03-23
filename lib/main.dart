@@ -126,7 +126,7 @@ class _firstState extends State<first> {
             ),
           ),
           // Padding(
-          //   padding: EdgeInsets.only(bottom: 50),
+          //
           // ),
 
           SizedBox(
